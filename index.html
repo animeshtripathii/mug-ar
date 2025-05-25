@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Mug Designer with AR</title>
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        
+        .upload-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 2px dashed #dee2e6;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-section:hover {
+            border-color: #007bff;
+            background: #e3f2fd;
+        }
+        
+        .upload-section h3 {
+            color: #495057;
+            margin-bottom: 15px;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            margin: 10px;
+        }
+        
+        .file-input {
+            position: absolute;
+            left: -9999px;
+        }
+        
+        .file-input-button {
+            background: #007bff;
+            color: white;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-block;
+            font-weight: bold;
+        }
+        
+        .file-input-button:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+        
+        .preview-image {
+            max-width: 150px;
+            max-height: 150px;
+            margin: 15px auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            display: none;
+        }
+        
+        model-viewer {
+            width: 100%;
+            height: 600px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .control-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .control-button:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+        
+        .control-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .instructions {
+            margin-top: 25px;
+            padding: 20px;
+            background: #e8f5e8;
+            border-radius: 10px;
+            border-left: 5px solid #28a745;
+        }
+        
+        .instructions h3 {
+            color: #155724;
+            margin-bottom: 15px;
+        }
+        
+        .instructions p {
+            color: #155724;
+            margin: 8px 0;
+        }
+        
+        .status-message {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Custom Mug Designer</h1>
+        
+        <div class="upload-section">
+            <h3>Upload Your Custom Image</h3>
+            <p>Choose an image to display on your mug (JPG, PNG, GIF supported)</p>
+            
+            <div class="file-input-wrapper">
+                <input type="file" id="imageUpload" class="file-input" accept="image/*">
+                <label for="imageUpload" class="file-input-button">
+                    📁 Choose Image
+                </label>
+            </div>
+            
+            <img id="previewImage" class="preview-image" alt="Preview">
+            
+            <div id="statusMessage" class="status-message"></div>
+        </div>
+        
+        <model-viewer 
+            id="mugModel"
+            src="scene.gltf"
+            alt="A customizable 3D mug"
+            ar
+            ar-modes="webxr scene-viewer quick-look"
+            auto-rotate
+            camera-controls
+            shadow-intensity="1"
+            environment-image="neutral"
+            loading="eager">
+        </model-viewer>
+        
+        <div class="controls">
+            <button id="resetTexture" class="control-button">🔄 Reset to Original</button>
+            <button id="applyTexture" class="control-button" disabled>✨ Apply Custom Design</button>
+        </div>
+        
+        <div class="instructions">
+            <h3>How to Use:</h3>
+            <p><strong>Step 1:</strong> Upload your custom image using the button above</p>
+            <p><strong>Step 2:</strong> Click "Apply Custom Design" to map your image onto the mug</p>
+            <p><strong>Step 3:</strong> Use mouse/touch to rotate and zoom the 3D model</p>
+            <p><strong>Step 4:</strong> Click the AR button (📱) to view your custom mug in augmented reality</p>
+            <p><strong>AR Requirements:</strong> Android device with ARCore or iOS device with AR Quick Look</p>
+        </div>
+    </div>
+
+    <script>
+        class MugCustomizer {
+            constructor() {
+                this.modelViewer = document.getElementById('mugModel');
+                this.imageUpload = document.getElementById('imageUpload');
+                this.previewImage = document.getElementById('previewImage');
+                this.applyButton = document.getElementById('applyTexture');
+                this.resetButton = document.getElementById('resetTexture');
+                this.statusMessage = document.getElementById('statusMessage');
+                this.uploadedImageData = null;
+                this.originalMaterial = null;
+                
+                this.initializeEventListeners();
+            }
+            
+            initializeEventListeners() {
+                // Wait for model to load
+                this.modelViewer.addEventListener('load', () => {
+                    this.originalMaterial = this.modelViewer.model.materials[0];
+                    this.showStatus('Model loaded successfully! Upload an image to customize.', 'success');
+                });
+                
+                // Image upload handler
+                this.imageUpload.addEventListener('change', (event) => {
+                    this.handleImageUpload(event);
+                });
+                
+                // Apply texture button
+                this.applyButton.addEventListener('click', () => {
+                    this.applyCustomTexture();
+                });
+                
+                // Reset texture button
+                this.resetButton.addEventListener('click', () => {
+                    this.resetToOriginal();
+                });
+            }
+            
+            handleImageUpload(event) {
+                const file = event.target.files[0];
+                
+                if (!file) return;
+                
+                // Validate file type
+                if (!file.type.startsWith('image/')) {
+                    this.showStatus('Please select a valid image file (JPG, PNG, GIF)', 'error');
+                    return;
+                }
+                
+                // Check file size (limit to 5MB)
+                if (file.size > 5 * 1024 * 1024) {
+                    this.showStatus('Image file is too large. Please choose a file under 5MB.', 'error');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                
+                reader.onload = (e) => {
+                    this.uploadedImageData = e.target.result;
+                    this.previewImage.src = this.uploadedImageData;
+                    this.previewImage.style.display = 'block';
+                    this.applyButton.disabled = false;
+                    this.showStatus('Image uploaded successfully! Click "Apply Custom Design" to see it on the mug.', 'success');
+                };
+                
+                reader.onerror = () => {
+                    this.showStatus('Error reading the image file. Please try again.', 'error');
+                };
+                
+                reader.readAsDataURL(file);
+            }
+            
+            async applyCustomTexture() {
+                if (!this.uploadedImageData) {
+                    this.showStatus('Please upload an image first.', 'error');
+                    return;
+                }
+                
+                try {
+                    this.showStatus('Applying your custom design...', 'success');
+                    
+                    // Create texture from uploaded image
+                    const texture = await this.modelViewer.createTexture(this.uploadedImageData);
+                    
+                    // Apply texture to the material
+                    const material = this.modelViewer.model.materials[0];
+                    
+                    // Set the texture as the base color (diffuse) map
+                    material.pbrMetallicRoughness.baseColorTexture.setTexture(texture);
+                    
+                    // Update the material
+                    material.pbrMetallicRoughness.setMetallicFactor(0.1);
+                    material.pbrMetallicRoughness.setRoughnessFactor(0.8);
+                    
+                    this.showStatus('Custom design applied! Your mug is ready for AR viewing.', 'success');
+                    
+                } catch (error) {
+                    console.error('Error applying texture:', error);
+                    this.showStatus('Error applying the custom design. Please try again.', 'error');
+                }
+            }
+            
+            resetToOriginal() {
+                try {
+                    // Reset to original material properties
+                    const material = this.modelViewer.model.materials[0];
+                    material.pbrMetallicRoughness.baseColorTexture.setTexture(null);
+                    
+                    // Reset material properties to original values
+                    material.pbrMetallicRoughness.setMetallicFactor(0.0);
+                    material.pbrMetallicRoughness.setRoughnessFactor(0.0);
+                    
+                    this.showStatus('Reset to original mug design.', 'success');
+                    
+                } catch (error) {
+                    console.error('Error resetting texture:', error);
+                    this.showStatus('Error resetting to original design.', 'error');
+                }
+            }
+            
+            showStatus(message, type) {
+                this.statusMessage.textContent = message;
+                this.statusMessage.className = `status-message status-${type}`;
+                this.statusMessage.style.display = 'block';
+                
+                // Auto-hide after 5 seconds
+                setTimeout(() => {
+                    this.statusMessage.style.display = 'none';
+                }, 5000);
+            }
+        }
+        
+        // Initialize the mug customizer when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new MugCustomizer();
+        });
+    </script>
+</body>
+</html>
