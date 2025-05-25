@@ -23,13 +23,47 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
         
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 30px;
-            font-size: 2.5em;
+        /* AR-optimized model viewer styles */
+        model-viewer {
+            width: 100%;
+            height: 500px; /* Fixed height for better AR button visibility */
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            display: block;
+            position: relative;
+            overflow: visible; /* Ensure AR button isn't clipped */
         }
         
+        /* Ensure AR button is visible */
+        model-viewer::part(default-ar-button) {
+            bottom: 16px;
+            right: 16px;
+            position: absolute;
+            z-index: 1000;
+        }
+        
+        .ar-status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .ar-supported {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .ar-not-supported {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        /* Rest of your existing styles... */
         .upload-section {
             background: #f8f9fa;
             border-radius: 10px;
@@ -38,16 +72,6 @@
             border: 2px dashed #dee2e6;
             text-align: center;
             transition: all 0.3s ease;
-        }
-        
-        .upload-section:hover {
-            border-color: #007bff;
-            background: #e3f2fd;
-        }
-        
-        .upload-section h3 {
-            color: #495057;
-            margin-bottom: 15px;
         }
         
         .file-input-wrapper {
@@ -72,11 +96,6 @@
             font-weight: bold;
         }
         
-        .file-input-button:hover {
-            background: #0056b3;
-            transform: translateY(-2px);
-        }
-        
         .preview-image {
             max-width: 150px;
             max-height: 150px;
@@ -84,14 +103,6 @@
             border-radius: 10px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             display: none;
-        }
-        
-        model-viewer {
-            width: 100%;
-            height: 600px;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            border-radius: 15px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
         }
         
         .controls {
@@ -112,55 +123,6 @@
             font-weight: bold;
             transition: all 0.3s ease;
         }
-        
-        .control-button:hover {
-            background: #218838;
-            transform: translateY(-2px);
-        }
-        
-        .control-button:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .instructions {
-            margin-top: 25px;
-            padding: 20px;
-            background: #e8f5e8;
-            border-radius: 10px;
-            border-left: 5px solid #28a745;
-        }
-        
-        .instructions h3 {
-            color: #155724;
-            margin-bottom: 15px;
-        }
-        
-        .instructions p {
-            color: #155724;
-            margin: 8px 0;
-        }
-        
-        .status-message {
-            text-align: center;
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
-            display: none;
-        }
-        
-        .status-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .status-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
     </style>
 </head>
 <body>
@@ -179,8 +141,6 @@
             </div>
             
             <img id="previewImage" class="preview-image" alt="Preview">
-            
-            <div id="statusMessage" class="status-message"></div>
         </div>
         
         <model-viewer 
@@ -188,26 +148,34 @@
             src="scene.gltf"
             alt="A customizable 3D mug"
             ar
-            ar-modes="webxr scene-viewer quick-look"
+            ar-modes="scene-viewer quick-look"
             auto-rotate
             camera-controls
             shadow-intensity="1"
             environment-image="neutral"
             loading="eager">
+            
+            <!-- Custom AR button for better visibility -->
+            <button slot="ar-button" id="ar-button" style="
+                background: #ff6b35;
+                color: white;
+                border: none;
+                padding: 12px 20px;
+                border-radius: 25px;
+                font-weight: bold;
+                cursor: pointer;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            ">
+                📱 View in AR
+            </button>
         </model-viewer>
+        
+        <div id="arStatus" class="ar-status" style="display: none;"></div>
         
         <div class="controls">
             <button id="resetTexture" class="control-button">🔄 Reset to Original</button>
             <button id="applyTexture" class="control-button" disabled>✨ Apply Custom Design</button>
-        </div>
-        
-        <div class="instructions">
-            <h3>How to Use:</h3>
-            <p><strong>Step 1:</strong> Upload your custom image using the button above</p>
-            <p><strong>Step 2:</strong> Click "Apply Custom Design" to map your image onto the mug</p>
-            <p><strong>Step 3:</strong> Use mouse/touch to rotate and zoom the 3D model</p>
-            <p><strong>Step 4:</strong> Click the AR button (📱) to view your custom mug in augmented reality</p>
-            <p><strong>AR Requirements:</strong> Android device with ARCore or iOS device with AR Quick Look</p>
+            <button id="checkAR" class="control-button">🔍 Check AR Support</button>
         </div>
     </div>
 
@@ -219,18 +187,25 @@
                 this.previewImage = document.getElementById('previewImage');
                 this.applyButton = document.getElementById('applyTexture');
                 this.resetButton = document.getElementById('resetTexture');
-                this.statusMessage = document.getElementById('statusMessage');
+                this.checkARButton = document.getElementById('checkAR');
+                this.arStatus = document.getElementById('arStatus');
                 this.uploadedImageData = null;
-                this.originalMaterial = null;
                 
                 this.initializeEventListeners();
+                this.checkARSupport();
             }
             
             initializeEventListeners() {
-                // Wait for model to load
+                // Model load event
                 this.modelViewer.addEventListener('load', () => {
-                    this.originalMaterial = this.modelViewer.model.materials[0];
-                    this.showStatus('Model loaded successfully! Upload an image to customize.', 'success');
+                    console.log('Model loaded successfully');
+                    this.checkARSupport();
+                });
+                
+                // AR status events
+                this.modelViewer.addEventListener('ar-status', (event) => {
+                    console.log('AR Status:', event.detail.status);
+                    this.updateARStatus(event.detail.status);
                 });
                 
                 // Image upload handler
@@ -238,112 +213,127 @@
                     this.handleImageUpload(event);
                 });
                 
-                // Apply texture button
+                // Button handlers
                 this.applyButton.addEventListener('click', () => {
                     this.applyCustomTexture();
                 });
                 
-                // Reset texture button
                 this.resetButton.addEventListener('click', () => {
                     this.resetToOriginal();
                 });
+                
+                this.checkARButton.addEventListener('click', () => {
+                    this.checkARSupport();
+                });
+            }
+            
+            async checkARSupport() {
+                try {
+                    // Check if WebXR is available
+                    if ('xr' in navigator) {
+                        const isARSupported = await navigator.xr.isSessionSupported('immersive-ar');
+                        if (isARSupported) {
+                            this.showARStatus('AR is supported on this device! 🎉', 'supported');
+                            return;
+                        }
+                    }
+                    
+                    // Check for mobile AR support
+                    const isAndroid = /Android/i.test(navigator.userAgent);
+                    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                    
+                    if (isAndroid) {
+                        this.showARStatus('Android device detected. AR may be available through Scene Viewer.', 'supported');
+                    } else if (isIOS) {
+                        this.showARStatus('iOS device detected. AR may be available through Quick Look.', 'supported');
+                    } else {
+                        this.showARStatus('AR not supported on this device. Try on a mobile device.', 'not-supported');
+                    }
+                    
+                } catch (error) {
+                    console.error('Error checking AR support:', error);
+                    this.showARStatus('Unable to determine AR support.', 'not-supported');
+                }
+            }
+            
+            updateARStatus(status) {
+                let message = '';
+                let type = 'supported';
+                
+                switch(status) {
+                    case 'session-started':
+                        message = 'AR session started successfully! 🚀';
+                        break;
+                    case 'object-placed':
+                        message = 'Object placed in AR! 📍';
+                        break;
+                    case 'failed':
+                        message = 'AR failed to start. Check device compatibility.';
+                        type = 'not-supported';
+                        break;
+                    default:
+                        message = `AR Status: ${status}`;
+                }
+                
+                this.showARStatus(message, type);
+            }
+            
+            showARStatus(message, type) {
+                this.arStatus.textContent = message;
+                this.arStatus.className = `ar-status ar-${type}`;
+                this.arStatus.style.display = 'block';
+                
+                // Auto-hide after 5 seconds
+                setTimeout(() => {
+                    this.arStatus.style.display = 'none';
+                }, 5000);
             }
             
             handleImageUpload(event) {
                 const file = event.target.files[0];
-                
                 if (!file) return;
                 
-                // Validate file type
                 if (!file.type.startsWith('image/')) {
-                    this.showStatus('Please select a valid image file (JPG, PNG, GIF)', 'error');
-                    return;
-                }
-                
-                // Check file size (limit to 5MB)
-                if (file.size > 5 * 1024 * 1024) {
-                    this.showStatus('Image file is too large. Please choose a file under 5MB.', 'error');
+                    this.showARStatus('Please select a valid image file', 'not-supported');
                     return;
                 }
                 
                 const reader = new FileReader();
-                
                 reader.onload = (e) => {
                     this.uploadedImageData = e.target.result;
                     this.previewImage.src = this.uploadedImageData;
                     this.previewImage.style.display = 'block';
                     this.applyButton.disabled = false;
-                    this.showStatus('Image uploaded successfully! Click "Apply Custom Design" to see it on the mug.', 'success');
+                    this.showARStatus('Image uploaded! Apply design and try AR.', 'supported');
                 };
-                
-                reader.onerror = () => {
-                    this.showStatus('Error reading the image file. Please try again.', 'error');
-                };
-                
                 reader.readAsDataURL(file);
             }
             
             async applyCustomTexture() {
-                if (!this.uploadedImageData) {
-                    this.showStatus('Please upload an image first.', 'error');
-                    return;
-                }
+                if (!this.uploadedImageData) return;
                 
                 try {
-                    this.showStatus('Applying your custom design...', 'success');
-                    
-                    // Create texture from uploaded image
                     const texture = await this.modelViewer.createTexture(this.uploadedImageData);
-                    
-                    // Apply texture to the material
                     const material = this.modelViewer.model.materials[0];
-                    
-                    // Set the texture as the base color (diffuse) map
                     material.pbrMetallicRoughness.baseColorTexture.setTexture(texture);
-                    
-                    // Update the material
-                    material.pbrMetallicRoughness.setMetallicFactor(0.1);
-                    material.pbrMetallicRoughness.setRoughnessFactor(0.8);
-                    
-                    this.showStatus('Custom design applied! Your mug is ready for AR viewing.', 'success');
-                    
+                    this.showARStatus('Custom design applied! Ready for AR! ✨', 'supported');
                 } catch (error) {
                     console.error('Error applying texture:', error);
-                    this.showStatus('Error applying the custom design. Please try again.', 'error');
+                    this.showARStatus('Error applying design', 'not-supported');
                 }
             }
             
             resetToOriginal() {
                 try {
-                    // Reset to original material properties
                     const material = this.modelViewer.model.materials[0];
                     material.pbrMetallicRoughness.baseColorTexture.setTexture(null);
-                    
-                    // Reset material properties to original values
-                    material.pbrMetallicRoughness.setMetallicFactor(0.0);
-                    material.pbrMetallicRoughness.setRoughnessFactor(0.0);
-                    
-                    this.showStatus('Reset to original mug design.', 'success');
-                    
+                    this.showARStatus('Reset to original design', 'supported');
                 } catch (error) {
-                    console.error('Error resetting texture:', error);
-                    this.showStatus('Error resetting to original design.', 'error');
+                    console.error('Error resetting:', error);
                 }
-            }
-            
-            showStatus(message, type) {
-                this.statusMessage.textContent = message;
-                this.statusMessage.className = `status-message status-${type}`;
-                this.statusMessage.style.display = 'block';
-                
-                // Auto-hide after 5 seconds
-                setTimeout(() => {
-                    this.statusMessage.style.display = 'none';
-                }, 5000);
             }
         }
         
-        // Initialize the mug customizer when the page loads
         document.addEventListener('DOMContentLoaded', () => {
             new MugCustomizer();
         });
